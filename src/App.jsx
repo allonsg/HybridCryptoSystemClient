@@ -76,17 +76,17 @@ function App() {
 
     setInputValue("");
 
-    const jsonData = `
-    \`\`\`
-    ${JSON.stringify({ iv: encryptedIv, key: encryptedSymmetricKey, text: encryptedMessage }, null, 2)}
-    \`\`\`
-    `;
-
-
     const data = await postData({ iv: encryptedIv, key: encryptedSymmetricKey, text: encryptedMessage });
 
     console.log({ data });
-    setData(jsonData);
+    setData(JSON.stringify({
+      publicKey,
+      sessionKey: symmetricKey,
+      encryptedSessionKey: encryptedSymmetricKey,
+      message: inputValue,
+      encryptedMessage,
+      decryptedMessage: data,
+    }, null, 2));
   };
 
   return (
@@ -105,10 +105,6 @@ function App() {
                     }
                   }}
                   value={inputValue} onChange={e => setInputValue(e.target.value)} />
-
-
-        <label htmlFor="publicKey">Public Key</label>
-        <input type="text" id="publicKey" value={publicKey} disabled onChange={e => setPublicKey(e.target.value)} />
 
         <button type="submit">Submit</button>
 
