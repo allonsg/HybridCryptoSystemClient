@@ -2,39 +2,38 @@ import CryptoJS from "crypto-js";
 import axios, { AxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { JSEncrypt } from "jsencrypt";
-import { copyToClipboard } from "./lib/copyToClipboars.js";
 
-
-const PUBLIC_KEY = "MIIBCgKCAQEAvdjfVGRo6qK5Ybr92av6xgIsf26aagpGKtRxJN+iS/077l6iJl2Jpz5T+jXrZbtdNNz73oQD/0FoQsFf9gfbxenVpFYMS02TZpqhg6ibdMMC7bORv9SMVaAEfrm3BotoEV9B5LOLl4WnAf9/kMepA1RpMl2NQRjaiqtvhPQTIfedWqaZoYzOyHVEUGuYJEuw0CDabMAON7YMU1wyA2miXpMGt84qsH1i58uJQdNDfho2B9J+yZ06A/N9qkHFTz5ADRxNGjT29krMLEGJ6bajR8e6XB6+8bsmznUL9V5hFQbyznKo3E9FWmvKRre0yS/hV078XA6PLqvUnL4e+GrinQIDAQAB"
+const BASE_URL = "https://hybridcryptosystemapi.azurewebsites.net/api/main/";
 
 function App() {
   const [inputValue, setInputValue] = useState("");
-  // const [publicKey, setPublicKey] = useState(TOTAL_PUBLIC_KEY)
+  const [publicKey, setPublicKey] = useState("");
+  const [data, setData] = useState("");
 
-  // useEffect(() => {
-  //   void fetchAndSetPublicKey();
-  // }, []);
-  //
-  // const fetchAndSetPublicKey = async () => {
-  //   try {
-  //
-  //     const { data } = await axios.get("https://vladKRASAVA.com/api/public-key");
-  //
-  //     setPublicKey(data.key);
-  //   } catch (e) {
-  //
-  //     if(e instanceof AxiosError){
-  //       console.error(e.response?.data.message);
-  //       return
-  //     }
-  //     console.error(e);
-  //   }
-  // };
+  useEffect(() => {
+    void fetchAndSetPublicKey();
+  }, []);
+
+  const fetchAndSetPublicKey = async () => {
+    try {
+
+      const { data } = await axios.get(BASE_URL + "key");
+
+      setPublicKey(data);
+    } catch (e) {
+
+      if (e instanceof AxiosError) {
+        console.error(e.response?.data.message);
+        return;
+      }
+      console.error(e);
+    }
+  };
 
 
   const asymmetricEncrypt = (symmetricKey) => {
     const encrypt = new JSEncrypt();
-    encrypt.setPublicKey(PUBLIC_KEY);
+    encrypt.setPublicKey(publicKey);
     return encrypt.encrypt(symmetricKey);
   };
 
@@ -45,11 +44,25 @@ function App() {
     let encrypted = CryptoJS.AES.encrypt(plainText, keyBytes, {
       iv: ivBytes,
       mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7
+      padding: CryptoJS.pad.Pkcs7,
     });
 
     return encrypted.toString();
   }
+
+  const postData = async (args) => {
+    try {
+      const { data } = await axios.post(BASE_URL + "decrypt", args);
+
+      return data;
+    } catch (e) {
+      if (e instanceof AxiosError) {
+        console.error(e.response?.data.message);
+        return;
+      }
+      console.error(e);
+    }
+  };
 
   const handleSubmit = async (e) => {
 
@@ -61,28 +74,54 @@ function App() {
     const encryptedSymmetricKey = asymmetricEncrypt(symmetricKey);
     const encryptedIv = asymmetricEncrypt(iv);
 
-    setInputValue("")
+    setInputValue("");
 
     const jsonData = `
     \`\`\`
-    ${JSON.stringify({ iv:encryptedIv, key:encryptedSymmetricKey, text:encryptedMessage }, null, 2)}
+    ${JSON.stringify({ iv: encryptedIv, key: encryptedSymmetricKey, text: encryptedMessage }, null, 2)}
     \`\`\`
     `;
 
-    copyToClipboard(jsonData);
-    console.log(symmetricKey, iv);
+
+    const data = await postData({ iv: encryptedIv, key: encryptedSymmetricKey, text: encryptedMessage });
+
+    console.log({ data });
+    setData(jsonData);
   };
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center">
+    <div className="h-screen w-screen flex items-center justify-center bg-gray-100">
 
-      <form className="flex flex-col gap-[10px]  w-[500px] min-h-[500px] bg-teal-300" onSubmit={handleSubmit}>
+      <form className="flex flex-col gap-4 w-full min-h-screen bg-blue-200 p-5" onSubmit={handleSubmit}>
         <label htmlFor="message">Input message</label>
-        <textarea id="message" className="border-2 outline-none border-black" value={inputValue}
-                  onChange={e => setInputValue(e.target.value)} />
+        <textarea id="message" placeholder="Enter your message to encrypt" className="border-2 border-black"
+                  onKeyDown={event => {
+                    if (event.key === "Enter") {
+                      if (event.shiftKey) {
+                        return;
+                      }
+                      event.preventDefault();
+                      handleSubmit(event);
+                    }
+                  }}
+                  value={inputValue} onChange={e => setInputValue(e.target.value)} />
+
+
+        <label htmlFor="publicKey">Public Key</label>
+        <input type="text" id="publicKey" value={publicKey} disabled onChange={e => setPublicKey(e.target.value)} />
 
         <button type="submit">Submit</button>
+
+        {data.length > 0 && <pre className="whitespace-pre-line break-all">
+        <code>
+          {data}
+        </code>
+      </pre>}
+
+        <button onClick={() => setData("")} className="rounded-[4px] border border-black p-2" type="button">Reset
+        </button>
       </form>
+
     </div>
   );
 }
