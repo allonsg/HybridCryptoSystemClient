@@ -1,9 +1,9 @@
-import CryptoJS from "crypto-js";
 import axios, { AxiosError } from "axios";
+import CryptoJS from "crypto-js";
+import * as forge from "node-forge";
 import { useEffect, useState } from "react";
-import { JSEncrypt } from "jsencrypt";
 
-const BASE_URL = "https://hybridcryptosystemapi.azurewebsites.net/api/main/";
+const BASE_URL = process.env.API_BASE_URL || "";
 
 function App() {
   const [inputValue, setInputValue] = useState("");
@@ -16,12 +16,10 @@ function App() {
 
   const fetchAndSetPublicKey = async () => {
     try {
-
-      const { data } = await axios.get(BASE_URL + "key");
+      const { data } = await axios.get(BASE_URL + "/api/crypto/public-key");
 
       setPublicKey(data);
     } catch (e) {
-
       if (e instanceof AxiosError) {
         console.error(e.response?.data.message);
         return;
@@ -30,11 +28,10 @@ function App() {
     }
   };
 
-
   const asymmetricEncrypt = (symmetricKey) => {
-    const encrypt = new JSEncrypt();
-    encrypt.setPublicKey(publicKey);
-    return encrypt.encrypt(symmetricKey);
+    const pubKey = forge.pki.publicKeyFromPem(publicKey);
+    const encrypted = pubKey.encrypt(symmetricKey, "RSA-OAEP");
+    return forge.util.encode64(encrypted);
   };
 
   function encryptText(key, iv, plainText) {
@@ -52,7 +49,7 @@ function App() {
 
   const postData = async (args) => {
     try {
-      const { data } = await axios.post(BASE_URL + "decrypt", args);
+      const { data } = await axios.post(BASE_URL + "/api/crypto/decrypt", args);
 
       return data;
     } catch (e) {
@@ -65,7 +62,6 @@ function App() {
   };
 
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
     const iv = CryptoJS.lib.WordArray.random(8).toString();
@@ -76,48 +72,69 @@ function App() {
 
     setInputValue("");
 
-    const data = await postData({ iv: encryptedIv, key: encryptedSymmetricKey, text: encryptedMessage });
+    const data = await postData({
+      iv: encryptedIv,
+      key: encryptedSymmetricKey,
+      text: encryptedMessage,
+    });
 
     console.log({ data });
-    setData(JSON.stringify({
-      publicKey,
-      sessionKey: symmetricKey,
-      encryptedSessionKey: encryptedSymmetricKey,
-      message: inputValue,
-      encryptedMessage,
-      decryptedMessage: data,
-    }, null, 2));
+    setData(
+      JSON.stringify(
+        {
+          publicKey,
+          sessionKey: symmetricKey,
+          encryptedSessionKey: encryptedSymmetricKey,
+          message: inputValue,
+          encryptedMessage,
+          decryptedMessage: data,
+        },
+        null,
+        2,
+      ),
+    );
   };
 
   return (
     <div className="h-screen w-screen flex items-center justify-center bg-gray-100">
-
-      <form className="flex flex-col gap-4 w-full min-h-screen bg-blue-200 p-5" onSubmit={handleSubmit}>
+      <form
+        className="flex flex-col gap-4 w-full min-h-screen bg-blue-200 p-5"
+        onSubmit={handleSubmit}
+      >
         <label htmlFor="message">Input message</label>
-        <textarea id="message" placeholder="Enter your message to encrypt" className="border-2 border-black"
-                  onKeyDown={event => {
-                    if (event.key === "Enter") {
-                      if (event.shiftKey) {
-                        return;
-                      }
-                      event.preventDefault();
-                      handleSubmit(event);
-                    }
-                  }}
-                  value={inputValue} onChange={e => setInputValue(e.target.value)} />
+        <textarea
+          id="message"
+          placeholder="Enter your message to encrypt"
+          className="border-2 border-black"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              if (event.shiftKey) {
+                return;
+              }
+              event.preventDefault();
+              handleSubmit(event);
+            }
+          }}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+        />
 
         <button type="submit">Submit</button>
 
-        {data.length > 0 && <pre className="whitespace-pre-line break-all">
-        <code>
-          {data}
-        </code>
-      </pre>}
+        {data.length > 0 && (
+          <pre className="whitespace-pre-line break-all">
+            <code>{data}</code>
+          </pre>
+        )}
 
-        <button onClick={() => setData("")} className="rounded-[4px] border border-black p-2" type="button">Reset
+        <button
+          onClick={() => setData("")}
+          className="rounded-[4px] border border-black p-2"
+          type="button"
+        >
+          Reset
         </button>
       </form>
-
     </div>
   );
 }
