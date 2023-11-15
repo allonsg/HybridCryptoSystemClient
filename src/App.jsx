@@ -36,8 +36,20 @@ function App() {
     return encryptedSymmetricKey;
   };
 
-  function generateKeyFromPassPhrase(input) {
-    return CryptoJS.enc.Utf8.parse(input);
+  function setDesKeyByPassPhrase(passPhrase) {
+    const iterations = 300;
+    const keySize = 4;
+
+    const salt = passPhrase;
+
+    const key = CryptoJS.PBKDF2(passPhrase, salt, {
+      keySize,
+      iterations: iterations,
+    });
+
+    const keyString = CryptoJS.enc.Hex.stringify(key);
+
+    return keyString.slice(0, 8);
   }
 
   function encryptText(key, iv, plainText) {
@@ -71,8 +83,11 @@ function App() {
     e.preventDefault();
 
     const iv = CryptoJS.lib.WordArray.random(4).toString();
-    const symmetricKey = CryptoJS.lib.WordArray.random(4).toString();
-    // const symmetricKey = generateKeyFromPassPhrase(PASS_PHRASE);
+    // const symmetricKey = CryptoJS.lib.WordArray.random(4).toString();
+    const symmetricKey = setDesKeyByPassPhrase(PASS_PHRASE);
+
+    console.dir({ symmetricKey, iv });
+
     const encryptedMessage = encryptText(symmetricKey, iv, inputValue);
     const encryptedSymmetricKey = asymmetricEncrypt(symmetricKey);
     const encryptedIv = asymmetricEncrypt(iv);
