@@ -4,6 +4,7 @@ import * as forge from "node-forge";
 import { useEffect, useState } from "react";
 
 const BASE_URL = process.env.API_BASE_URL || "";
+const PASS_PHRASE = "Ugbaja";
 
 function App() {
   const [inputValue, setInputValue] = useState("");
@@ -31,14 +32,19 @@ function App() {
   const asymmetricEncrypt = (symmetricKey) => {
     const pubKey = forge.pki.publicKeyFromPem(publicKey);
     const encrypted = pubKey.encrypt(symmetricKey, "RSA-OAEP");
-    return forge.util.encode64(encrypted);
+    const encryptedSymmetricKey = forge.util.encode64(encrypted);
+    return encryptedSymmetricKey;
   };
+
+  function generateKeyFromPassPhrase(input) {
+    return CryptoJS.enc.Utf8.parse(input);
+  }
 
   function encryptText(key, iv, plainText) {
     let keyBytes = CryptoJS.enc.Utf8.parse(key);
     let ivBytes = CryptoJS.enc.Utf8.parse(iv);
 
-    let encrypted = CryptoJS.AES.encrypt(plainText, keyBytes, {
+    let encrypted = CryptoJS.DES.encrypt(plainText, keyBytes, {
       iv: ivBytes,
       mode: CryptoJS.mode.CBC,
       padding: CryptoJS.pad.Pkcs7,
@@ -64,8 +70,9 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const iv = CryptoJS.lib.WordArray.random(8).toString();
-    const symmetricKey = CryptoJS.lib.WordArray.random(16).toString();
+    const iv = CryptoJS.lib.WordArray.random(4).toString();
+    const symmetricKey = CryptoJS.lib.WordArray.random(4).toString();
+    // const symmetricKey = generateKeyFromPassPhrase(PASS_PHRASE);
     const encryptedMessage = encryptText(symmetricKey, iv, inputValue);
     const encryptedSymmetricKey = asymmetricEncrypt(symmetricKey);
     const encryptedIv = asymmetricEncrypt(iv);
@@ -78,7 +85,6 @@ function App() {
       text: encryptedMessage,
     });
 
-    console.log({ data });
     setData(
       JSON.stringify(
         {
