@@ -38,7 +38,7 @@ function App() {
 
   function setDesKeyByPassPhrase(passPhrase) {
     const iterations = 300;
-    const keySize = 4;
+    const keySize = 7;
 
     const salt = passPhrase;
 
